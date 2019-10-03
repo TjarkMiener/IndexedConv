@@ -190,7 +190,8 @@ def masked_conv2d(inputs,
                   kernel_constraint=None,
                   bias_constraint=None,
                   trainable=True,
-                  name=None):
+                  name=None,
+                  reuse=None):
     
     """ Functional interface for 2D masked convolution layer (e.g. temporal convolution).
         
@@ -213,7 +214,9 @@ def masked_conv2d(inputs,
                 kernel_constraint=kernel_constraint,
                 bias_constraint=bias_constraint,
                 trainable=trainable,
-                name=name)
+                name=name,
+                _reuse=reuse,
+                _scope=name)
                          
     return layer.apply(inputs)
 
@@ -228,20 +231,20 @@ class MaskedAvgPool2D(tf.layers.Layer):
         
         Arguments (taken from tensorflow):
         pool_size: An integer or tuple/list of 2 integers: (pool_height, pool_width)
-        specifying the size of the pooling window.
-        Can be a single integer to specify the same value for
-        all spatial dimensions.
+            specifying the size of the pooling window.
+            Can be a single integer to specify the same value for
+            all spatial dimensions.
         strides: An integer or tuple/list of 2 integers,
-        specifying the strides of the pooling operation.
-        Can be a single integer to specify the same value for
-        all spatial dimensions.
+            specifying the strides of the pooling operation.
+            Can be a single integer to specify the same value for
+            all spatial dimensions.
         padding: A string. The padding method, either 'valid' or 'same'.
-        Case-insensitive.
+            Case-insensitive.
         data_format: A string. The ordering of the dimensions in the inputs.
-        `channels_last` (default) and `channels_first` are supported.
-        `channels_last` corresponds to inputs with shape
-        `(batch, height, width, channels)` while `channels_first` corresponds to
-        inputs with shape `(batch, channels, height, width)`.
+            `channels_last` (default) and `channels_first` are supported.
+            `channels_last` corresponds to inputs with shape
+            `(batch, height, width, channels)` while `channels_first` corresponds to
+            inputs with shape `(batch, channels, height, width)`.
         name: A string, the name of the layer.
     """
     def __init__(self,

@@ -110,7 +110,7 @@ class MaskedConv2D(tf.layers.Layer):
             self.data_format = 'NCHW'
             self.strides = (1, 1) + strides
         else:
-            raise ValueError('data_formate must be channels_last or channels_first.')
+            raise ValueError('data_format must be channels_last or channels_first.')
         self.dilation_rate = dilation_rate
         self.activation = activation
         self.use_bias = use_bias
@@ -280,7 +280,7 @@ class MaskedAvgPool2D(tf.layers.Layer):
             self.data_format = 'NCHW'
             self.strides = (1, 1) + strides
         else:
-            raise ValueError('data_formate must be channels_last or channels_first.')
+            raise ValueError('data_format must be channels_last or channels_first.')
 
     def build(self, input_shape):
     

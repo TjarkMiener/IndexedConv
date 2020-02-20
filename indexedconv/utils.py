@@ -303,12 +303,12 @@ def prepare_mask(indices):
     """
     padded = indices == -1
     new_indices = indices.copy()
-    new_indices[padded] = 0
+    indices[padded] = 0
 
     mask = np.array([1, 0], dtype=np.float32)
     mask = mask[..., padded.astype(int)]
 
-    return new_indices, mask
+    return indices, mask
 
 
 ###################
@@ -339,7 +339,7 @@ def square_to_hexagonal(image):
         image (numpy.Array): image tensor of shape (c, n, m)
 
     """
-    image_tr = image.copy()
+    image_tr = image.clone()
     image_tr[:, :, :-1] = image[:, :, 1:]
     image_mean = (image + image_tr) / 2
     image[:, 1::2, :] = image_mean[:, 1::2, :]

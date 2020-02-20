@@ -1,3 +1,9 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# In[1]:
+
+
 """
 masked.py
 ========
@@ -6,22 +12,26 @@ Contain MaskedConv2D layer and MaskedAvgPool2D pooling class with functional int
 
 import tensorflow as tf
 import logging
+import time
+
+
+# In[2]:
 
 
 # Should run on gpus. However I need to verify that.
-class MaskedConv2D(tf.layers.Layer):
+class MaskedConv2d(tf.layers.Layer):
     """ 2D masked convolution layer (e.g. spatial convolution over images).
-        
+
         This work/code is inspired by
         1) https://github.com/ehoogeboom/hexaconv
         2) https://gist.github.com/abhaikollara/430c0491c851cf0b05a852f1faa805d7
-        
+
         This layer creates a masked convolution kernel that is convolved
         (actually cross-correlated) with the layer input to produce a tensor of
         outputs. If `use_bias` is True (and a `bias_initializer` is provided),
         a bias vector is created and added to the outputs. Finally, if
         `activation` is not `None`, it is applied to the outputs as well.
-        
+
         Arguments (taken from tensorflow):
         filters: Integer, the dimensionality of the output space (i.e. the number
             of filters in the convolution).
@@ -87,10 +97,10 @@ class MaskedConv2D(tf.layers.Layer):
                  trainable=True,
                  name=None,
                  **kwargs):
-        
-        super(MaskedConv2D, self).__init__(trainable=True,name=name,activity_regularizer=activity_regularizer,**kwargs)
-        self.logger = logging.getLogger(__name__ + '.MaskedConv2D')
-        
+
+        super(MaskedConv2d, self).__init__(trainable=True,name=name,activity_regularizer=activity_regularizer,**kwargs)
+        self.logger = logging.getLogger(__name__ + '.MaskedConv2d')
+
         self.filters = filters
         self.kernel_size = kernel_size
         # There is a discrepancy in the arguments for 'padding' and 'data_format' between
@@ -103,6 +113,7 @@ class MaskedConv2D(tf.layers.Layer):
             self.padding = 'SAME'
         else:
             raise ValueError('padding must be valid or same.')
+        #strides = (strides,strides) if type(strides) != tuple else None
         if data_format == 'channels_last':
             self.data_format = 'NHWC'
             self.strides = (1,) + strides + (1,)
@@ -122,7 +133,7 @@ class MaskedConv2D(tf.layers.Layer):
         self.bias_constraint = bias_constraint
 
     def build(self, input_shape):
-        
+
         input_dim = tf.TensorShape(input_shape)
         if self.data_format == 'NHWC':
             in_channels = input_dim[3]
@@ -132,11 +143,12 @@ class MaskedConv2D(tf.layers.Layer):
         # For now the mask are hardcoded (to run on gpu)! Later with build_kernel() from utils.py!
         if self.kernel_size == 3:
             self.mask = tf.Variable([[1.,1.,0.],[1.,1.,1.],[0.,1.,1.]], tf.float32)
+            print('noflip')
         elif self.kernel_size == 5:
             self.mask = tf.Variable([[1.,1.,1.,0.,0.],[1.,1.,1.,1.,0.],[1.,1.,1.,1.,1.],[0.,1.,1.,1.,1.],[0.,0.,1.,1.,1.]], tf.float32)
         else:
             raise ValueError('kernel_size must be 3 or 5.')
-                                                            
+
         kernel_shape = (in_channels, out_channels, self.kernel_size, self.kernel_size)
         self.kernel = self.add_variable(name='kernel',
                                         shape=kernel_shape,
@@ -147,7 +159,7 @@ class MaskedConv2D(tf.layers.Layer):
                                         dtype=self.dtype)
         self.kernel = self.kernel * self.mask
         self.kernel = tf.transpose(self.kernel, perm=[2, 3, 0, 1])
-                                                                                                
+
         if self.use_bias:
             self.bias = self.add_variable(name='bias',
                                           shape=(out_channels,),
@@ -160,7 +172,7 @@ class MaskedConv2D(tf.layers.Layer):
             self.bias = None
 
     def call(self, inputs):
-    
+
         outputs = tf.nn.conv2d(input=inputs,
                                filter=self.kernel,
                                strides=self.strides,
@@ -192,12 +204,12 @@ def masked_conv2d(inputs,
                   trainable=True,
                   name=None,
                   reuse=None):
-    
+
     """ Functional interface for 2D masked convolution layer (e.g. temporal convolution).
-        
+
         Same arguments as in the MaskedConv2D class.
     """
-    layer = MaskedConv2D(
+    layer = MaskedConv2d(
                 filters=filters,
                 kernel_size=kernel_size,
                 strides=strides,
@@ -217,18 +229,22 @@ def masked_conv2d(inputs,
                 name=name,
                 _reuse=reuse,
                 _scope=name)
-                         
+
     return layer.apply(inputs)
 
 
+# In[4]:
+
+
+
 # Should run on gpus. However I need to verify that.
-class MaskedAvgPool2D(tf.layers.Layer):
+class MaskedAveragePool2d(tf.layers.Layer):
     """ Masked average pooling layer for 2D inputs (e.g. images).
-        
+
         This work/code is inspired by
         1) https://github.com/ehoogeboom/hexaconv
         2) https://gist.github.com/abhaikollara/430c0491c851cf0b05a852f1faa805d7
-        
+
         Arguments (taken from tensorflow):
         pool_size: An integer or tuple/list of 2 integers: (pool_height, pool_width)
             specifying the size of the pooling window.
@@ -254,10 +270,10 @@ class MaskedAvgPool2D(tf.layers.Layer):
                  data_format='channels_last',
                  name=None,
                  **kwargs):
-        
-        super(MaskedAvgPool2D, self).__init__()
-        self.logger = logging.getLogger(__name__ + '.MaskedAvgPool2D')
-        
+
+        super(MaskedAveragePool2d, self).__init__()
+        self.logger = logging.getLogger(__name__ + '.MaskedAveragePool2d')
+
         if type(pool_size) is tuple:
             if pool_size[0] != pool_size[1]:
                 raise ValueError('pool_size tuple must be quadratic.')
@@ -273,6 +289,7 @@ class MaskedAvgPool2D(tf.layers.Layer):
             self.padding = 'SAME'
         else:
             raise ValueError('padding must be valid or same.')
+        strides = (strides,strides) if type(strides) == int else None
         if data_format == 'channels_last':
             self.data_format = 'NHWC'
             self.strides = (1,) + strides + (1,)
@@ -283,12 +300,13 @@ class MaskedAvgPool2D(tf.layers.Layer):
             raise ValueError('data_format must be channels_last or channels_first.')
 
     def build(self, input_shape):
-    
+
         input_dim = tf.TensorShape(input_shape)
         if self.data_format == 'NHWC':
             in_channels = input_dim[3]
         elif self.data_format == 'NCHW':
             in_channels = input_dim[1]
+        #self.inputs = inputs
         out_channels = in_channels
         # For now the mask are hardcoded (to run on gpu)! Later with build_kernel() from utils.py!
         if self.pool_size == 3:
@@ -308,13 +326,16 @@ class MaskedAvgPool2D(tf.layers.Layer):
         self.kernel = tf.transpose(self.kernel, perm=[2, 3, 0, 1])
 
     def call(self, inputs):
-        
+
         outputs = tf.nn.conv2d(input=inputs,
                                filter=self.kernel,
                                strides=self.strides,
                                padding=self.padding,
                                data_format=self.data_format,
                                name=self.name)
+        
+
+
         return outputs
 
 def masked_avgpool2d(inputs,
@@ -324,14 +345,186 @@ def masked_avgpool2d(inputs,
                      data_format='channels_last',
                      name=None):
     """ Functional interface for 2D masked average pooling layer.
-        
+
         Same arguments as in the MaskedAvgPool2D class.
     """
-    avgpool = MaskedAvgPool2D(
+    avgpool = MaskedAveragePool2d(
                     pool_size=pool_size,
                     strides=strides,
                     padding=padding,
                     data_format=data_format,
                     name=name)
-                              
+
     return avgpool.apply(inputs)
+
+
+# In[ ]:
+
+
+# Should run on gpus. However I need to verify that.
+class MaskedMaxPool2d(tf.layers.Layer):
+    """ Masked average pooling layer for 2D inputs (e.g. images).
+
+        This work/code is inspired by
+        1) https://github.com/ehoogeboom/hexaconv
+        2) https://gist.github.com/abhaikollara/430c0491c851cf0b05a852f1faa805d7
+
+        Arguments (taken from tensorflow):
+        pool_size: An integer or tuple/list of 2 integers: (pool_height, pool_width)
+            specifying the size of the pooling window.
+            Can be a single integer to specify the same value for
+            all spatial dimensions.
+        strides: An integer or tuple/list of 2 integers,
+            specifying the strides of the pooling operation.
+            Can be a single integer to specify the same value for
+            all spatial dimensions.
+        padding: A string. The padding method, either 'valid' or 'same'.
+            Case-insensitive.
+        data_format: A string. The ordering of the dimensions in the inputs.
+            `channels_last` (default) and `channels_first` are supported.
+            `channels_last` corresponds to inputs with shape
+            `(batch, height, width, channels)` while `channels_first` corresponds to
+            inputs with shape `(batch, channels, height, width)`.
+        name: A string, the name of the layer.
+    """
+    def __init__(self,
+                 pool_size=(3,3),
+                 strides=(3,3),
+                 padding='same',
+                 data_format='channels_last',
+                 name=None,
+                 **kwargs):
+
+        super(MaskedMaxPool2d, self).__init__()
+        self.logger = logging.getLogger(__name__ + '.MaskedMaxPool2d')
+
+        if type(pool_size) is tuple:
+            if pool_size[0] != pool_size[1]:
+                raise ValueError('pool_size tuple must be quadratic.')
+            self.pool_size = pool_size[0]
+        else:
+            self.pool_size = pool_size
+        # There is a discrepancy in the arguments for 'padding' and 'data_format' between
+        # the layer classes of tensorflow and the 'conv2d' and 'bias_add' function
+        # in tensorflow.nn. A translation is introduced so that the MaskedConv2D class
+        # is consistent with the convention of the layer classes of tensorflow.
+        if padding == 'valid':
+            self.padding = 'VALID'
+        elif padding == 'same':
+            self.padding = 'SAME'
+        else:
+            raise ValueError('padding must be valid or same.')
+        strides = (strides,strides) if type(strides) == int else None
+        if data_format == 'channels_last':
+            self.data_format = 'NHWC'
+            self.strides = (1,) + strides + (1,)
+        elif data_format == 'channels_first':
+            self.data_format = 'NCHW'
+            self.strides = (1,) + strides + (1,)
+        else:
+            raise ValueError('data_format must be channels_last or channels_first.')
+        self.stride = strides[0]
+
+    def build(self, input_shape):
+
+        # padding
+        self.P = int((self.stride-1)) if self.padding == 'SAME' else 0
+        print(self.P)
+        self.pad = tf.constant([[0,0], [self.P, self.P], [self.P, self.P], [0,0]])
+
+
+        self.auxkernel_HW = int(self.pool_size - (self.pool_size-1)/2)
+        self.auxkernel_size = [1,self.auxkernel_HW,self.auxkernel_HW,1]
+
+
+    def call(self, inputs):
+        
+        batch, height, width, in_channels = tf.shape(inputs)[0],tf.shape(inputs)[1],tf.shape(inputs)[2],tf.shape(inputs)[3]
+        self.inputs = tf.pad(inputs, self.pad)
+        
+        
+        #-------------------
+        if self.pool_size == 3:
+            self.input_topleft = tf.slice(inputs,[0,0,0,0],
+                                          tf.convert_to_tensor([batch,height-1+2*self.P,width-1+2*self.P,
+                                           in_channels]))
+            self.input_bottomright = tf.slice(inputs,[0,1,1,0],
+                                              [batch,height-1+2*self.P,width-1+2*self.P,
+                                               in_channels])
+
+        elif self.pool_size == 5:
+            self.input_topleft = tf.slice(inputs,[0,0,0,0],
+                                          [self.batch,self.height-2+2*self.P,self.width-2+2*self.P,
+                                           self.in_channels])
+            self.input_bottomright = tf.slice(inputs,[0,2,2,0],
+                                              [self.batch,self.height-2+2*self.P,self.width-2+2*self.P,
+                                               self.in_channels])
+            self.input_center = tf.slice(inputs,[0,1,1,0],
+                                         [self.batch,self.height-2+2*self.P,self.width-2+2*self.P,
+                                          self.in_channels])
+
+        else:
+            raise ValueError('pool_size must be (3,3) or (5,5).')
+        #--------------------    
+
+        max_topleft = tf.nn.max_pool(self.input_topleft,
+                                 ksize = self.auxkernel_size,
+                                 strides =self.strides,
+                                 padding='VALID',
+                                 data_format='NHWC',
+                                 name=self.name)
+        print('tl:',max_topleft)
+
+        max_bottomright = tf.nn.max_pool(self.input_bottomright,
+                                 ksize = self.auxkernel_size,
+                                 strides =self.strides,
+                                 padding='VALID',
+                                 data_format='NHWC',
+                                 name=self.name)
+        print('br:',max_bottomright)
+
+        if self.pool_size == 3:
+            outputs = tf.maximum(max_topleft, max_bottomright)
+            print('outputs:',outputs)
+
+            output = outputs
+        else:
+            max_center = tf.nn.max_pool(self.input_center,
+                                 ksize = self.auxkernel_size,
+                                 strides =self.strides,
+                                 padding='VALID',
+                                 data_format='NHWC',
+                                 name=self.name)
+            print('c:', max_center)
+
+            outputs = tf.math.maximum(max_topleft, max_bottomright)
+            outputs = tf.math.maximum(outputs, max_center)
+            print('outputs:',outputs)
+
+            output = outputs
+        print()
+        return output
+
+
+
+def masked_maxpool2d(inputs,
+                     pool_size=(3,3),
+                     strides=(3,3),
+                     padding='same',
+                     data_format='channels_last',
+                     name=None):
+    """ Functional interface for 2D masked average pooling layer.
+
+        Same arguments as in the MaskedAvgPool2D class.
+    """
+    maxpool = MaskedMaxPool2d(
+                    pool_size=pool_size,
+                    strides=strides,
+                    padding=padding,
+                    data_format=data_format,
+                    name=name)
+
+    return maxpool.apply(inputs)
+
+
+# In[ ]:
